@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}New refund{% endblock %}
+{% block content %}
+<p><a href="/apps/refunds">&larr; All refunds</a></p>
+<h1>New refund request</h1>
+<p class="muted">Creates a <em>pending</em> request for manager review. No money moves: there is no payment integration.</p>
+{% if errors %}<div class="error-box">Please fix the highlighted fields.</div>{% endif %}
+<form class="form" method="post" action="/apps/refunds/new">
+  <label>Customer ID
+    <input name="customer_id" value="{{ form.customer_id or '' }}" placeholder="CUS-123456" required pattern="[Cc][Uu][Ss]-[0-9]{6}">
+  </label>
+  {{ ui.field_error(errors, "customer_id") }}
+  <label>Amount (USD)
+    <input name="amount" value="{{ form.amount or '' }}" placeholder="125.50" inputmode="decimal" required>
+  </label>
+  {{ ui.field_error(errors, "amount") }}
+  <label>Reason
+    <textarea name="reason" rows="4" maxlength="500" required>{{ form.reason or '' }}</textarea>
+  </label>
+  {{ ui.field_error(errors, "reason") }}
+  <button type="submit">Submit request</button>
+</form>
+{% endblock %}

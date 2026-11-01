@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<h1>Audit log</h1>
+<p class="muted">Append-only through this application (no edit/delete paths; SQLite triggers block UPDATE/DELETE). Not tamper-proof against direct database access.</p>
+<form class="filters" method="get" action="/audit">
+  <label>Action
+    <select name="action"><option value="">Any</option>
+      {% for a in actions %}<option value="{{ a }}" {{ 'selected' if filters.action == a }}>{{ a }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Actor
+    <select name="actor_id"><option value="">Any</option>
+      {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if filters.actor_id == u.id|string }}>{{ u.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Target type <input name="target_type" value="{{ filters.target_type }}" placeholder="refund_request"></label>
+  <label>Target id <input name="target_id" value="{{ filters.target_id }}" size="6"></label>
+  <button type="submit">Filter</button> <a href="/audit">Reset</a>
+</form>
+<p class="muted">{{ events|length }} event(s), newest first (max 500).</p>
+{{ ui.audit_table(events) }}
+{% endblock %}
