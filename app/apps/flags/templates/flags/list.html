@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Feature flags{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Feature Flags</h1>
+</div>
+{% if not can(current_user, 'flags.toggle') %}
+  <div class="callout">You can view flags. Only engineers can enable or disable them.</div>
+{% endif %}
+<form class="filters" method="get" action="/apps/flags">
+  {{ ui.select_filter("environment", "Environment", environment_options, filters.environment) }}
+  <button type="submit">Filter</button> <a href="/apps/flags">Reset</a>
+</form>
+{% if flags %}
+<table class="table">
+  <thead><tr><th>Name</th><th>Description</th><th>Environment</th><th>Status</th><th>Last changed</th></tr></thead>
+  <tbody>
+  {% for f in flags %}
+    <tr>
+      <td><a href="/apps/flags/{{ f.id }}"><code>{{ f.name }}</code></a></td>
+      <td>{{ f.description }}</td>
+      <td>{{ f.environment }}</td>
+      <td>{{ ui.status_badge(f.status) }}</td>
+      <td class="nowrap">{{ f.updated_at|dt }}{% if f.updated_by_name %} · {{ f.updated_by_name }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty_state("No feature flags match these filters.") }}{% endif %}
+{% endblock %}

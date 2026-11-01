@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.apps.flags import APP as FLAGS_APP
 from app.apps.refunds import APP as REFUNDS_APP
 from app.config import db_path_from_env, seed_demo_from_env
 from app.core import authz
@@ -18,6 +19,7 @@ from app.core.templating import build_templates
 
 INSTALLED_APPS: list[InternalApp] = [
     REFUNDS_APP,
+    FLAGS_APP,
 ]
 
 

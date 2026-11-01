@@ -37,6 +37,8 @@ button.approve { background:var(--ok); } button.reject { background:var(--bad); 
 .badge-pending { background:var(--warnbg); color:var(--warn); }
 .badge-approved { background:var(--okbg); color:var(--ok); }
 .badge-rejected { background:var(--badbg); color:var(--bad); }
+.badge-enabled { background:var(--okbg); color:var(--ok); }
+.badge-disabled { background:#eef0f4; color:var(--muted); }
 .role-manager { background:#e8e6ff; color:#4535b5; } .role-agent { background:#e3f1ff; color:#1659a8; } .role-engineer { background:#eaf6ee; color:#2a6b3e; }
 .filters { display:flex; gap:12px; align-items:end; flex-wrap:wrap; background:#fff; border:1px solid var(--line); padding:12px; border-radius:8px; margin:12px 0; }
 .filters label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:2px; }

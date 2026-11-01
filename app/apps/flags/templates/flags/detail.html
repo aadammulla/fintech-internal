@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}{{ flag.name }} ({{ flag.environment }}){% endblock %}
+{% block content %}
+<p><a href="/apps/flags">&larr; All flags</a></p>
+<div class="page-head">
+  <h1>{{ flag.name }} {{ ui.status_badge(flag.status) }}</h1>
+</div>
+<dl class="kv">
+  <dt>Description</dt><dd>{{ flag.description }}</dd>
+  <dt>Environment</dt><dd>{{ flag.environment }}</dd>
+  <dt>Last changed</dt><dd>{{ flag.updated_at|dt }}{% if flag.updated_by_name %} · {{ flag.updated_by_name }}{% endif %}</dd>
+</dl>
+
+{% if can(current_user, 'flags.toggle') %}
+  {% if errors %}<div class="error-box">Please fix the highlighted fields.</div>{% endif %}
+  <form class="form" method="post" action="/apps/flags/{{ flag.id }}/{{ 'disable' if flag.enabled else 'enable' }}">
+    <label>Reason for change (required)
+      <textarea name="reason" rows="3" maxlength="500" required minlength="5">{{ form.reason or '' }}</textarea>
+    </label>
+    {{ ui.field_error(errors, "reason") }}
+    {% if flag.enabled %}
+      <button type="submit" class="reject">Disable in {{ flag.environment }}</button>
+    {% else %}
+      <button type="submit" class="approve">Enable in {{ flag.environment }}</button>
+    {% endif %}
+  </form>
+{% else %}
+  <div class="callout">Only engineers can change feature flags.</div>
+{% endif %}
+
+<h2>Change history</h2>
+{{ ui.audit_table(history, show_target=False) }}
+{% endblock %}
