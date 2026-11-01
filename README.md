@@ -28,7 +28,7 @@ On first start the app creates `data/fintech_internal.db` and seeds synthetic us
 
 | Task | Command |
 |---|---|
-| Run tests | `python -m pytest` |
+| Run tests | `python -m pytest` (also runs in CI on every PR and push to `main`: `.github/workflows/tests.yml`, Python 3.12) |
 | Reset demo data | `python -m app.core.seed --reset` |
 | Dev server with auto-reload | `RELOAD=1 python -m app` (or `uvicorn app.asgi:app --reload`) |
 | Different port / DB file | `PORT=8080 FINTECH_DB_PATH=/tmp/demo.db python -m app` |
