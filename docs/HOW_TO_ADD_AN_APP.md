@@ -1,10 +1,20 @@
 # How to add an internal app
 
-This guide walks through adding a new tool, using a **KYC Review Queue** as the example. The
-Refunds Dashboard (`app/apps/refunds/`) is the reference implementation. Copy its structure.
+This guide walks through adding a new tool, using a **KYC Review Queue** as the example. There are two
+reference implementations. Copy whichever is closer to your tool:
 
-Expect to write about five small files and change one line in `app/main.py`. You shouldn't need to
-touch anything in `app/core/`.
+- **Refunds Dashboard** (`app/apps/refunds/`): a request → approve/reject workflow with a `StatusMachine`
+  and separation of duties.
+- **Feature Flags** (`app/apps/flags/`): direct, authorized edits of existing records (no workflow). Engineers
+  toggle a flag with a required reason; everyone else views. Shows re-rendering a detail page with
+  validation errors, a no-op change as `409`, and a per-record history page.
+
+Expect to write about five small files plus templates, and add two lines to `app/main.py` (import + list entry).
+The only shared files you'd normally touch are cosmetic: a `.badge-<status>` rule in
+`app/core/static/style.css` and the "Coming later" card in `app/core/templates/home.html`.
+
+Setup: `pip install -r requirements.txt` in your venv (it includes `pytest` and `httpx`), then
+`python -m pytest` should pass before you start.
 
 ## 0. What you get for free
 
@@ -19,7 +29,7 @@ touch anything in `app/core/`.
 | UI-only show/hide | `{% if can(current_user, "kyc.decide") %}` (Jinja global) | `app/core/templating.py` |
 | Audit trail | `record_event(conn, actor=, action=, target_type=, target_id=, details=)` | `app/core/audit.py` |
 | Per-record history | `list_events(conn, target_type=..., target_id=...)` | `app/core/audit.py` |
-| Status rules | `StatusMachine({...}).ensure_transition(old, new)` | `app/core/workflow.py` |
+| Status rules (optional: only if your records have a lifecycle) | `StatusMachine({...}).ensure_transition(old, new)` | `app/core/workflow.py` |
 | Errors → HTTP | raise `PermissionDenied` (403), `NotFound` (404), `InvalidTransition` (409), `ValidationError({field: msg})` (400) | `app/core/errors.py` (mapped in `handlers.py`) |
 | Page rendering | `render(request, "kyc/queue.html", {...})` adds `current_user`, `all_users`, `notice` | `app/core/templating.py` |
 | Layout, nav, identity selector | `{% extends "base.html" %}` with `{% block title %}` / `{% block content %}` | `app/core/templates/base.html` |
@@ -115,8 +125,17 @@ def decide(conn, actor: User, case_id: int, new_status: str):
                      target_id=case_id, details={"from_status": row["status"], "to_status": new_status})
 ```
 
+Not every app is a workflow. For direct edits (see `app/apps/flags/service.py::set_flag`) skip the
+`StatusMachine` and SoD, but keep the rest: permission first, validate, load + conditional
+`UPDATE ... WHERE id = ? AND <old value>` inside `transaction()`, and `record_event` with the previous and
+new values in `details`. Raise `InvalidTransition` (409) for a no-op or stale change so the audit log
+only contains real changes.
+
 Conventions:
-- Permission names: `<app>.<capability>`. Audit actions: `<entity>.<past_tense_verb>`.
+- Permission names: `<app>.<capability>`. Audit actions: `<entity>.<past_tense_verb>`
+  (e.g. `refund.approved`, `flag.enabled`; the older `"<app>.<verb>"` wording in `audit.py` means the same thing).
+- `record_event` fills in actor id/name/role and the timestamp. Put everything else a reviewer needs
+  (old/new values, reason, human-readable names) in `details`.
 - Keep authorization in the service even if the route also checks. Tests and future APIs call the service directly.
 - Never write to `audit_events` except through `record_event`.
 
@@ -146,7 +165,17 @@ def approve(case_id: int, user=Depends(permission_required("kyc.decide")), conn=
 
 Use POST + `303` redirect for every state change, so the browser refresh is safe. Raise the domain errors
 and let `app/core/handlers.py` render them. For form validation errors, catch `ValidationError` and
-re-render the form with `e.errors` and `status_code=400` (see `routes.create` in refunds).
+re-render the form with `e.errors` and `status_code=400` (see `routes.create` in refunds, or
+`routes._change` in flags for a form that lives on a detail page). An uncaught `ValidationError` still
+becomes a plain 400 error page.
+
+Things the foundation does for you, and its gaps:
+- **Denied requests are audited** as `access.denied`. When the route dependency
+  `permission_required(...)` rejects, the event's target is `route:<path>` (it doesn't know the record),
+  so per-record history pages filtered by `target_type`/`target_id` won't show denials. Use `/audit?action=access.denied`.
+- **Malformed path params** (e.g. `/apps/kyc/abc` for an `int` id) return FastAPI's **422 JSON**, not the
+  HTML error page, and aren't audited. Unauthorized callers still get 403 first because the permission
+  dependency runs before the handler.
 
 ## 5. Templates: `templates/kyc/*.html`
 
@@ -164,7 +193,9 @@ re-render the form with `e.errors` and `status_code=400` (see `routes.create` in
 {% endblock %}
 ```
 
-`ui.status_badge` styles any status. Add a `.badge-<status>` rule in `style.css` for colours.
+`ui.status_badge` styles any status. Add a `.badge-<status>` rule in `app/core/static/style.css` for colours
+(e.g. `.badge-enabled`/`.badge-disabled` were added for flags). For filters, `ui.select_filter` takes a list of
+`(value, label)` tuples, so build that in the route.
 
 ## 6. Register: `__init__.py` and `app/main.py`
 
@@ -196,7 +227,14 @@ at `/apps/kyc`, adds the template folder, and lists the app on the home page and
 ## 7. Seed data: `seed.py` (optional)
 
 Signature: `def seed(conn: sqlite3.Connection) -> None`. Create records **through your service
-functions** (see `app/apps/refunds/seed.py`) so the demo audit trail is consistent. Use fictional
+functions** (see `app/apps/refunds/seed.py`) so the demo audit trail is consistent. If your app has no
+"create" action (flags), insert the base rows directly and make demo *changes* through the service
+(see `app/apps/flags/seed.py`).
+
+**Seeds run only when the `users` table is empty** (`app/core/seed.py::is_empty`). Adding an app to an
+existing database creates its tables but leaves them empty. Run `python -m app.core.seed --reset` after
+installing a new app, and say so in the README. Seeds also run for every test (the `app` fixture seeds),
+so count audit events filtered by action/target, not globally. Use fictional
 customers (`CUS-######`) and the seeded users from `app/core/seed.py::DEMO_USERS`.
 
 If you need a new role (e.g. `compliance`), add it to `ROLES` in `app/core/identity.py`, the `CHECK`
@@ -207,7 +245,8 @@ on `users.role` in `app/core/db.py`, and `DEMO_USERS`. Then reset the DB.
 Reuse the fixtures in `tests/conftest.py`:
 - `client_as(email)` gives a `TestClient` with a simulated identity selected through the real `/identity` route
 - `conn` and `user(email)` for calling service functions directly
-- `audit_count(conn, action, target_id)` and `refund_status`-style helpers
+- `audit_count(conn, action, target_id)`. `refund_status` is refunds-specific; write the equivalent
+  helper for your table in your own test module (see `is_enabled` in `tests/test_flags.py`)
 
 Minimum tests to copy from `tests/test_authorization.py`, `test_separation_of_duties.py`,
 `test_transitions.py` and `test_audit.py`:
@@ -215,10 +254,27 @@ Minimum tests to copy from `tests/test_authorization.py`, `test_separation_of_du
 2. Each SoD rule is rejected (HTTP and service level).
 3. Every disallowed transition returns 409 and leaves state and audit unchanged.
 4. Every successful write produces exactly one audit event with the right actor, target and details.
+5. Persistence: build a second `create_app(db_path=db_path, seed_demo=False)` over the same file and read
+   the record back (see `tests/test_end_to_end.py` and `test_change_persists_after_refresh_and_restart`
+   in `tests/test_flags.py`).
+6. An audit-write failure rolls back the business change (monkeypatch `service.record_event` to raise).
 
-## Example: feature-flag admin panel
+Put your tests in `tests/test_<slug>.py`, then run the whole suite. The refunds tests must still pass.
 
-The same pieces apply: a `feature_flags` table and a `flag_change_requests` table; permissions
-`flags.view` (all), `flags.request_change` (engineer), `flags.approve_change` (manager); a
-`StatusMachine({"requested": {"approved","rejected"}, "approved": {"applied"}})`; SoD "requester ≠ approver";
-and audit actions `flag_change.requested/approved/applied` with before/after values in `details`.
+## 9. Checklist
+
+- [ ] `app/apps/<slug>/` package + templates, registered in `INSTALLED_APPS`
+- [ ] `.badge-<status>` CSS for any new statuses
+- [ ] `tests/test_<slug>.py`; full `python -m pytest` green
+- [ ] README: roles table, a short demo script, architecture tree, limitations
+- [ ] Remove your app from the "Coming later" card in `app/core/templates/home.html`
+- [ ] `python -m app.core.seed --reset` and click through each role once
+
+## Example: feature-flag admin panel (implemented)
+
+See `app/apps/flags/`. It deliberately does **not** reuse the refund approval workflow: permissions are
+`flags.view` (agent, manager, engineer) and `flags.toggle` (engineer); `service.set_flag` is a direct,
+reasoned toggle audited as `flag.enabled` / `flag.disabled` with `flag`, `environment`, `previous_value`,
+`new_value` and `reason` in `details`. If you later need a change-request flow, add a
+`flag_change_requests` table with a `StatusMachine` and SoD like refunds, and keep `set_flag` as the
+"apply" step.
