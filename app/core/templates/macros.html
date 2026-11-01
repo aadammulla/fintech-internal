@@ -1,0 +1,49 @@
+{# Reusable UI pieces. Import with: {% import "macros.html" as ui %} #}
+
+{% macro status_badge(status) -%}
+  <span class="badge badge-{{ status }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro role_badge(role) -%}
+  <span class="badge role-{{ role }}">{{ role }}</span>
+{%- endmacro %}
+
+{% macro field_error(errors, name) -%}
+  {% if errors and errors.get(name) %}<div class="field-error">{{ errors[name] }}</div>{% endif %}
+{%- endmacro %}
+
+{% macro empty_state(message) -%}
+  <div class="empty">{{ message }}</div>
+{%- endmacro %}
+
+{% macro select_filter(name, label, options, selected, any_label="Any") -%}
+  {# options: list of (value, label) tuples #}
+  <label>{{ label }}
+    <select name="{{ name }}">
+      <option value="">{{ any_label }}</option>
+      {% for value, text in options %}
+        <option value="{{ value }}" {{ 'selected' if selected|string == value|string }}>{{ text }}</option>
+      {% endfor %}
+    </select>
+  </label>
+{%- endmacro %}
+
+{% macro audit_table(events, show_target=True) -%}
+  {% if events %}
+  <table class="table audit">
+    <thead><tr><th>#</th><th>When</th><th>Actor</th><th>Action</th>{% if show_target %}<th>Target</th>{% endif %}<th>Details</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr>
+        <td>{{ e.id }}</td>
+        <td class="nowrap">{{ e.occurred_at|dt }}</td>
+        <td>{{ e.actor_name }} {{ role_badge(e.actor_role) }}</td>
+        <td><code>{{ e.action }}</code></td>
+        {% if show_target %}<td><code>{{ e.target_type }}:{{ e.target_id }}</code></td>{% endif %}
+        <td class="details">{% for k, v in e.details.items() %}<div><span class="muted">{{ k }}:</span> {{ v }}</div>{% endfor %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty_state("No audit events.") }}{% endif %}
+{%- endmacro %}

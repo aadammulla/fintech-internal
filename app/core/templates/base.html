@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Internal Tools{% endblock %} · Fintech Internal Tools</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="sim-banner" role="note">
+    <strong>DEMO</strong> · Simulated employee identity, <strong>not real authentication</strong>.
+    All data is synthetic. No real payments are processed.
+  </div>
+  <header class="topbar">
+    <a class="brand" href="/">Fintech Internal Tools</a>
+    <nav class="mainnav">
+      <a href="/" class="{{ 'active' if current_path == '/' }}">Home</a>
+      {% for a in installed_apps %}
+        <a href="{{ a.url }}" class="{{ 'active' if current_path.startswith(a.url) }}">{{ a.name }}</a>
+      {% endfor %}
+      {% if can(current_user, 'audit.view') %}
+        <a href="/audit" class="{{ 'active' if current_path.startswith('/audit') }}">Audit log</a>
+      {% endif %}
+    </nav>
+    <form class="identity" method="post" action="/identity">
+      <label for="identity-select">Acting as (simulated):</label>
+      <select id="identity-select" name="user_id" onchange="this.form.submit()">
+        {% if not current_user %}<option value="" selected disabled>— choose an employee —</option>{% endif %}
+        {% for u in all_users %}
+          <option value="{{ u.id }}" {{ 'selected' if current_user and current_user.id == u.id }}>
+            {{ u.name }} ({{ u.role }})
+          </option>
+        {% endfor %}
+      </select>
+      <input type="hidden" name="next" value="{{ current_path }}">
+      <noscript><button type="submit">Switch</button></noscript>
+    </form>
+  </header>
+  <main class="container">
+    {% if notice %}<div class="notice" role="status">{{ notice }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">Fintech Internal Tools Starter Kit · proof of concept</footer>
+</body>
+</html>

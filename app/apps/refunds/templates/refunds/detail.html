@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}{{ refund.reference }}{% endblock %}
+{% block content %}
+<p><a href="/apps/refunds">&larr; All refunds</a></p>
+<div class="page-head">
+  <h1>{{ refund.reference }} {{ ui.status_badge(refund.status) }}</h1>
+</div>
+<dl class="kv">
+  <dt>Customer</dt><dd><code>{{ refund.customer_id }}</code></dd>
+  <dt>Amount</dt><dd>{{ refund.amount_cents|money(refund.currency) }}</dd>
+  <dt>Reason</dt><dd>{{ refund.reason }}</dd>
+  <dt>Requested by</dt><dd>{{ refund.requested_by_name }} · {{ refund.created_at|dt }}</dd>
+  {% if refund.decided_by %}
+  <dt>Decided by</dt><dd>{{ refund.decided_by_name }} · {{ refund.decided_at|dt }}</dd>
+  <dt>Decision note</dt><dd>{{ refund.decision_note or "—" }}</dd>
+  {% endif %}
+</dl>
+
+{% if is_pending and can(current_user, 'refunds.decide') %}
+  {% if is_own %}
+    <div class="callout">You requested this refund, so another manager must decide it (separation of duties).</div>
+  {% else %}
+  <form class="form decision" method="post">
+    <label>Decision note (optional) <input name="note" maxlength="500"></label>
+    <div class="actions">
+      <button type="submit" formaction="/apps/refunds/{{ refund.id }}/approve" class="approve">Approve</button>
+      <button type="submit" formaction="/apps/refunds/{{ refund.id }}/reject" class="reject">Reject</button>
+    </div>
+  </form>
+  {% endif %}
+{% elif is_pending %}
+  <div class="callout">Awaiting a manager decision.</div>
+{% endif %}
+
+<h2>History</h2>
+{{ ui.audit_table(history, show_target=False) }}
+{% endblock %}

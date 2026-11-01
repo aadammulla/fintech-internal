@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Refunds{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Refunds Dashboard</h1>
+  {% if can(current_user, 'refunds.create') %}<a class="button" href="/apps/refunds/new">New refund request</a>{% endif %}
+</div>
+<div class="stats">
+  {% for s in statuses %}
+    <a class="stat" href="?status={{ s }}">{{ ui.status_badge(s) }} <strong>{{ counts[s] }}</strong></a>
+  {% endfor %}
+</div>
+<form class="filters" method="get" action="/apps/refunds">
+  <label>Status
+    <select name="status"><option value="">Any</option>
+      {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if filters.status == s }}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Customer ID <input name="customer_id" value="{{ filters.customer_id }}" placeholder="CUS-1042"></label>
+  <label>Requested by
+    <select name="requested_by"><option value="">Anyone</option>
+      {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if filters.requested_by == u.id|string }}>{{ u.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <button type="submit">Filter</button> <a href="/apps/refunds">Reset</a>
+</form>
+{% if refunds %}
+<table class="table">
+  <thead><tr><th>Ref</th><th>Customer</th><th class="num">Amount</th><th>Reason</th><th>Status</th><th>Requested by</th><th>Created</th><th>Decided by</th></tr></thead>
+  <tbody>
+  {% for r in refunds %}
+    <tr>
+      <td><a href="/apps/refunds/{{ r.id }}">{{ r.reference }}</a></td>
+      <td><code>{{ r.customer_id }}</code></td>
+      <td class="num">{{ r.amount_cents|money(r.currency) }}</td>
+      <td class="truncate" title="{{ r.reason }}">{{ r.reason }}</td>
+      <td>{{ ui.status_badge(r.status) }}</td>
+      <td>{{ r.requested_by_name }}</td>
+      <td class="nowrap">{{ r.created_at|dt }}</td>
+      <td>{{ r.decided_by_name or "—" }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}{{ ui.empty_state("No refund requests match these filters.") }}{% endif %}
+{% endblock %}

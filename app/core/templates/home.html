@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1>Internal tools</h1>
+{% if current_user %}
+  <p>Acting as <strong>{{ current_user.name }}</strong> · {{ current_user.title }} {{ ui.role_badge(current_user.role) }}</p>
+{% else %}
+  <div class="callout">Pick a simulated employee in the top-right selector to get started. Any visitor can pick any identity: this is a demo, not authentication.</div>
+{% endif %}
+<div class="cards">
+  {% for a in installed_apps %}
+    <a class="card" href="{{ a.url }}">
+      <h2>{{ a.name }}</h2>
+      <p>{{ a.description }}</p>
+      {% if a.view_permission and current_user and not can(current_user, a.view_permission) %}<p class="muted">Your role cannot open this app.</p>{% endif %}
+    </a>
+  {% endfor %}
+  {% if can(current_user, 'audit.view') %}
+    <a class="card" href="/audit"><h2>Audit log</h2><p>All recorded events across every app (managers only).</p></a>
+  {% endif %}
+  <div class="card card-placeholder"><h2>Coming later</h2><p>KYC review queue, feature-flag admin, … (see docs/HOW_TO_ADD_AN_APP.md)</p></div>
+</div>
+<h2>Demo identities</h2>
+<table class="table">
+  <thead><tr><th>Name</th><th>Role</th><th>Title</th></tr></thead>
+  <tbody>{% for u in all_users %}<tr><td>{{ u.name }}</td><td>{{ ui.role_badge(u.role) }}</td><td>{{ u.title }}</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}
