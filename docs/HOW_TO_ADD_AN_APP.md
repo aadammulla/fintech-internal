@@ -229,7 +229,8 @@ at `/apps/kyc`, adds the template folder, and lists the app on the home page and
 Signature: `def seed(conn: sqlite3.Connection) -> None`. Create records **through your service
 functions** (see `app/apps/refunds/seed.py`) so the demo audit trail is consistent. If your app has no
 "create" action (flags), insert the base rows directly and make demo *changes* through the service
-(see `app/apps/flags/seed.py`).
+(see `app/apps/flags/seed.py`). `seed_all()` registers every app's permissions before seeding, so
+seeds work from the standalone `python -m app.core.seed` CLI too (covered by `tests/test_seed_cli.py`).
 
 **Seeds run only when the `users` table is empty** (`app/core/seed.py::is_empty`). Adding an app to an
 existing database creates its tables but leaves them empty. Run `python -m app.core.seed --reset` after

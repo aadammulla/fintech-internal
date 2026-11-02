@@ -26,6 +26,12 @@ def register_permissions(perms: dict[str, set[str]]) -> None:
         _PERMISSIONS[name] = frozenset(roles)
 
 
+def register_app_permissions(apps) -> None:
+    """Register every app's declared permissions. Idempotent; call before any service code runs."""
+    for spec in apps:
+        register_permissions(spec.permissions)
+
+
 def roles_for(permission: str) -> frozenset[str]:
     if permission not in _PERMISSIONS:
         # Fail closed on typos / unregistered permissions.

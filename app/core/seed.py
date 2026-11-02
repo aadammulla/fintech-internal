@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import sqlite3
 
+from app.core import authz
 from app.core.identity import create_user
 
 DEMO_USERS = [
@@ -29,20 +30,23 @@ def seed_users(conn: sqlite3.Connection) -> None:
 
 
 def seed_all(conn: sqlite3.Connection, apps) -> None:
+    # App seeds go through service functions, which check permissions, so the
+    # registry must be populated even when running outside create_app().
+    authz.register_app_permissions(apps)
     seed_users(conn)
     for spec in apps:
         if spec.seed:
             spec.seed(conn)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     from app.config import db_path_from_env
     from app.core.db import connect, init_db
     from app.main import INSTALLED_APPS
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reset", action="store_true", help="delete the database file first")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     path = db_path_from_env()
     if args.reset:
         for suffix in ("", "-wal", "-shm"):
