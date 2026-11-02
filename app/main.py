@@ -29,8 +29,7 @@ def create_app(db_path: str | Path | None = None, seed_demo: bool | None = None,
     db_path = Path(db_path) if db_path else db_path_from_env()
     seed_demo = seed_demo_from_env() if seed_demo is None else seed_demo
 
-    for spec in apps:
-        authz.register_permissions(spec.permissions)
+    authz.register_app_permissions(apps)
 
     init_db(db_path, [spec.schema_sql for spec in apps if spec.schema_sql])
     if seed_demo:

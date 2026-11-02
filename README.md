@@ -101,7 +101,7 @@ app/
     templating.py       shared Jinja env, money/dt filters, render() helper
     registry.py         InternalApp spec (slug, name, router, schema, permissions, seed, templates)
     routes.py           /, /identity, /audit, /healthz
-    seed.py             synthetic users; runs each app's seed; `--reset` CLI
+    seed.py             synthetic users; registers app permissions and runs each app's seed; `--reset` CLI
     templates/          base.html (layout + identity selector), macros.html, home, audit, error
     static/style.css
   apps/
